@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -6,27 +6,38 @@ public class BuffManagarBehaviour : MonoBehaviour
 {
     public static BuffManagarBehaviour Instance;
 
+    [Header("Buff Prefabs")]
     public GameObject BuffGem3Prefab;
     public GameObject BuffGem4Prefab;
     public GameObject BuffGem7Prefab;
     public GameObject BuffGem10Prefab;
+
+    [Header("Buff Timer Prefabs")]
     public GameObject HealBuffTimerPrefab;
     public GameObject RocksBuffTimerPrefab;
     public GameObject SlowdownBuffTimerPrefab;
     public GameObject SpeedBuffTimerPrefab;
     public GameObject BlessBuffTimerPrefab;
     public GameObject CurseBuffTimerPrefab;
+
+    [Header("Particles")]
     public ParticleSystem HealParticle;
     public ParticleSystem SlowDownParticle;
     public ParticleSystem SpeedParticle;
     public ParticleSystem CurseParticle;
+
+    [Header("References")]
     public GameObject RocksBuff;
     public PlayerBehaviourScript PlayerBehaviour;
     public WeaponThrower WeaponBehaviour;
     public Transform contentTransform;
 
-    public BuffObject currentBuffObject;
-    public BuffType currentBuffType;
+    [Header("Buff Timing Control")]
+    [Tooltip("שלוט על מהירות הופעת הבאפים (1 = רגיל, 0.5 = כפול מהירות, 2 = חצי מהירות)")]
+    public float BuffSpawnSpeed = 1f;
+
+    private BuffObject currentBuffObject;
+    private BuffType currentBuffType;
     private BuffType previousBuffType;
 
     float minX = -330f;
@@ -46,23 +57,30 @@ public class BuffManagarBehaviour : MonoBehaviour
         if (SpeedParticle != null) SpeedParticle.gameObject.SetActive(true); SpeedParticle.Stop();
         if (CurseParticle != null) CurseParticle.gameObject.SetActive(true); CurseParticle.Stop();
 
-        // Initialize previousBuffType to an invalid value
         previousBuffType = (BuffType)(-1);
     }
 
     void Start()
     {
-        Invoke("StartRandomBuffs", 20f);
+        // זמן ההמתנה ההתחלתי תלוי במהירות
+        float initialDelay = 20f / BuffSpawnSpeed;
+        Invoke("StartRandomBuffs", initialDelay);
     }
 
     void StartRandomBuffs()
     {
-        InvokeRepeating("SpawnRandomBuff", 0f, Random.Range(8f, 18f));
+        // טווח הזמן בין הופעות הבאפים תלוי במהירות
+        float minInterval = 8f / BuffSpawnSpeed;
+        float maxInterval = 18f / BuffSpawnSpeed;
+        float randomInterval = Random.Range(minInterval, maxInterval);
+
+        InvokeRepeating("SpawnRandomBuff", 0f, randomInterval);
     }
 
     void SpawnRandomBuff()
     {
         if (PlayerBehaviour != null && PlayerBehaviour.isGameOver) return;
+
         currentBuffObject = GetRandomBuffObject();
         currentBuffType = GetRandomBuffType();
 
@@ -104,25 +122,11 @@ public class BuffManagarBehaviour : MonoBehaviour
         do
         {
             randomBuffType = (BuffType)Random.Range(0, System.Enum.GetValues(typeof(BuffType)).Length);
-
-            // Handle special cases
- /*           if (randomBuffType == BuffType.IncreaseHealth2)
-            {
-                randomBuffType = BuffType.IncreaseHealth;
-            }
-            else if (randomBuffType == BuffType.IncreaseSpeed2)
-            {
-                randomBuffType = BuffType.IncreaseSpeed;
-            }
- */
             attempts++;
-            // Prevent infinite loop - if we've tried many times, just accept the result
             if (attempts > 20)
                 break;
-
         } while (randomBuffType == previousBuffType);
 
-        // Store the current buff type as the previous one for next time
         previousBuffType = randomBuffType;
         return randomBuffType;
     }
@@ -130,14 +134,14 @@ public class BuffManagarBehaviour : MonoBehaviour
     public void ActivateBuff(BuffType buffType)
     {
         switch (buffType)
-        {            
+        {
             case BuffType.DecreaseSpeed:
                 PlayerBehaviour.SetSpeed(-30f);
                 CreateBuffTimer(SlowdownBuffTimerPrefab);
                 StartParticleEffect(SlowDownParticle, 10f);
                 StartCoroutine(RevertSpeedAfterDelay(10f, -30f));
                 break;
-            
+
             case BuffType.IncreaseSpeed:
                 PlayerBehaviour.SetSpeed(30f);
                 CreateBuffTimer(SpeedBuffTimerPrefab);
@@ -150,8 +154,6 @@ public class BuffManagarBehaviour : MonoBehaviour
                 CreateBuffTimer(HealBuffTimerPrefab);
                 StartParticleEffect(HealParticle, 10f);
                 break;
-
-
 
             case BuffType.ActivateRocks:
                 RocksBuff.SetActive(true);
@@ -171,7 +173,6 @@ public class BuffManagarBehaviour : MonoBehaviour
                 StartParticleEffect(CurseParticle, 10f);
                 StartCoroutine(RemoveCurseAfterDelay(10f, false));
                 break;
-
         }
     }
 
@@ -188,16 +189,14 @@ public class BuffManagarBehaviour : MonoBehaviour
     {
         yield return new WaitForSeconds(delay);
         if (particleSystem != null)
-        {
             particleSystem.Stop();
-        }
     }
 
     IEnumerator RemoveBlessAfterDelay(float delay)
     {
         yield return new WaitForSeconds(delay);
         WeaponBehaviour.SetIsBless(false);
-        WeaponBehaviour.SetWeaponCount(6); // Reset weapon count after bless ends
+        WeaponBehaviour.SetWeaponCount(6);
     }
 
     IEnumerator RemoveCurseAfterDelay(float delay, bool curse)
@@ -246,8 +245,41 @@ public class BuffManagarBehaviour : MonoBehaviour
             yield return null;
         }
     }
-}
 
+    public void ResetAllBuffs()
+    {
+        // 1️⃣ עצור את כל הקורוטינות (כמו טיימרים של באפים)
+        StopAllCoroutines();
+
+        // 2️⃣ כבה את כל חלקיקי ה־Buffs
+        if (HealParticle != null) HealParticle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        if (SlowDownParticle != null) SlowDownParticle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        if (SpeedParticle != null) SpeedParticle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        if (CurseParticle != null) CurseParticle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+        // 3️⃣ הסר את כל ה־BuffTimerPrefab מה־UI
+        if (contentTransform != null)
+        {
+            foreach (Transform child in contentTransform)
+            {
+                Destroy(child.gameObject);
+            }
+        }
+
+        // 4️⃣ נטרל מצבים פעילים
+        if (RocksBuff != null) RocksBuff.SetActive(false);
+        if (PlayerBehaviour != null)
+        {
+            PlayerBehaviour.SetSpeed(0); // החזר למהירות המקורית אם אתה רוצה
+            PlayerBehaviour.setIsCurse(false);
+        }
+        if (WeaponBehaviour != null)
+        {
+            WeaponBehaviour.SetIsBless(false);
+        }
+
+        Debug.Log("✅ כל הבאפים אופסו, כל הפארטיקלס הופסקו והטיימרים הוסרו.");
+    }
+}
 public enum BuffObject { Gem3, Gem4, Gem7, Gem10 }
 public enum BuffType { ActivateRocks, Bless, Curse, IncreaseHealth, DecreaseSpeed, IncreaseSpeed }
-// IncreaseHealth2, IncreaseSpeed2,

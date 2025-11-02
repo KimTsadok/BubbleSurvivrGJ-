@@ -13,7 +13,7 @@ public class BuffsBehaviour : MonoBehaviour
 
         // אם השחקן נכנס ל-Buff
         Debug.Log(collision.tag);
-        if (collision.CompareTag("Player1") || collision.CompareTag("WeaponInHand"))
+        if (collision.CompareTag("Player1"))
         {
             Debug.Log("CompareTag Player \n");
             // קרוא לפונקציה שתשפיע על ה-Buff של השחקן, תעביר את ה-BuffType כפרמטר

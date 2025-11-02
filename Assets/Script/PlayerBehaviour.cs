@@ -47,13 +47,13 @@ public class PlayerBehaviourScript : MonoBehaviour
 
     void Update()
     {
-        if (health <= 0 || isGameOver)
+        if (isGameOver)
         {
-            movement = Vector2.zero; // עצור את התנועה
-            rb.linearVelocity = Vector2.zero; // עצור את ה-Rigidbody
-            animator.SetInteger("State", 0); // עצור אנימציה אם רצוי
-            return;
+            movement = Vector2.zero;
+            rb.linearVelocity = Vector2.zero;
+            return; // לא לגעת באנימציה אם כבר מת
         }
+
         else
         {
             // Get player input
@@ -180,7 +180,19 @@ public class PlayerBehaviourScript : MonoBehaviour
     void Die()
     {
         isGameOver = true;
+
+        // הפעל את האנימציה של המוות
         animator.SetInteger("State", 3);
+        if (BuffManagarBehaviour.Instance != null)
+        {
+            BuffManagarBehaviour.Instance.ResetAllBuffs();
+        }
+        // נטרל באפים אקטיביים
+        isCurse = false;
+        speed = 5f; // או הערך הבסיסי שלך
+        StopAllCoroutines(); // <---- מבטל כל באף פעיל מיידית
+
+        // שאר הקוד שלך:
         CalculateStars();
         healthSlider.gameObject.SetActive(false);
         powerSlider.gameObject.SetActive(false);
@@ -192,12 +204,14 @@ public class PlayerBehaviourScript : MonoBehaviour
         EndGameManagar.SetEndText("Defeat");
         EndGameManagar.SetMedls(numOfStars);
         EndGameManagar.SetStars(numOfStars);
+
         if (PersistentObjectManager.Instance != null)
         {
-            int stageIndex = SceneManager.GetActiveScene().buildIndex - 1; // Since Scene 1 is the level selection
+            int stageIndex = SceneManager.GetActiveScene().buildIndex - 1;
             PersistentObjectManager.Instance.SaveStarRating(stageIndex, numOfStars);
         }
     }
+
 
     public void OnWin()
     {
